@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { supabase } from "../lib/supabase";
 
 type Phase = "scenario" | "feedback" | "complete";
 
@@ -33,15 +34,15 @@ const scenarios: Scenario[] = [
     time: "11:42 AM",
     platform: "whatsapp",
     message:
-      "Hi, this is Rian. My phone is broken. I urgently need Rp500,000 for emergency doctor fees. Please transfer it to this account now. I'll pay you back tomorrow.",
+      "Hi, ini Rian. HP gue rusak parah. Urgent banget butuh Rp500.000 buat biaya dokter darurat. Tolong transfer ke rekening ini sekarang ya. Besok langsung gue ganti.",
     choices: [
-      { label: "Transfer the money immediately", safe: false, explanation: "You acted under urgency without verifying the sender's identity." },
-      { label: "Call the person directly via phone call", safe: true, explanation: "Excellent! Calling directly confirms identity before taking financial action." },
-      { label: "Ask for identity verification via voice message", safe: true, explanation: "Smart move — always verify before transferring money." },
-      { label: "Ignore or block the unverified contact", safe: true, explanation: "Safe choice. Ignoring unverified urgent requests protects you." },
+      { label: "Transfer uangnya secara langsung", safe: false, explanation: "Anda bertindak spontan di bawah tekanan urgensi tanpa verifikasi." },
+      { label: "Telepon langsung nomor pribadinya via panggilan seluler", safe: true, explanation: "Sangat baik! Telepon langsung memastikan identitas sebelum transfer." },
+      { label: "Minta verifikasi identitas melalui pesan suara (voice note)", safe: true, explanation: "Langkah cerdas — selalu verifikasi suara/identitas sebelum kirim uang." },
+      { label: "Abaikan atau blokir kontak tidak terverifikasi", safe: true, explanation: "Pilihan aman. Mengabaikan permintaan urgent tak dikenal melindungi Anda." },
     ],
-    riskyFeedback: "You acted under urgency without verifying identity. Scammers exploit urgency and broken phone stories to prevent callback verification.",
-    safeFeedback: "Great instinct! Verifying identity through an alternate channel is the correct response to urgency-based manipulation.",
+    riskyFeedback: "Anda bertindak terburu-buru akibat pemicu urgensi. Penipu memanfaatkan cerita darurat agar korban tidak sempat berpikir jernih.",
+    safeFeedback: "Insting yang luar biasa! Melakukan verifikasi melalui jalur terpisah adalah cara paling efektif menangani manipulasi urgensi.",
   },
   {
     id: 2,
@@ -55,13 +56,13 @@ const scenarios: Scenario[] = [
     message:
       "Kami mendeteksi aktivitas mencurigakan pada rekening Anda. Klik tautan berikut segera untuk memulihkan akses, atau rekening Anda akan ditutup permanen dalam 2 jam: http://bri-secure-login.xyz/restore",
     choices: [
-      { label: "Click the link immediately to restore access", safe: false, explanation: "The link leads to a phishing site. Real banks never send login links like this." },
-      { label: "Call the official bank phone number directly", safe: true, explanation: "Perfect — always use official contact numbers for banking issues." },
-      { label: "Check account status via official BRI Mobile App", safe: true, explanation: "Correct! Official mobile apps show real status, not unverified emails." },
-      { label: "Forward message to friends/family for advice", safe: false, explanation: "Forwarding phishing links can spread the threat to others." },
+      { label: "Klik tautan segera untuk memulihkan akun", safe: false, explanation: "Tautan mengarah ke situs phishing. Bank resmi tidak pernah mengirim tautan login seperti ini." },
+      { label: "Hubungi call center resmi bank secara langsung", safe: true, explanation: "Sempurna — selalu gunakan nomor kontak resmi dari situs/kartu ATM." },
+      { label: "Cek status rekening via aplikasi resmi BRImo", safe: true, explanation: "Benar! Aplikasi mobile resmi menampilkan status asli akun Anda." },
+      { label: "Teruskan pesan ke teman/keluarga untuk minta saran", safe: false, explanation: "Meneruskan tautan phishing berisiko menyebarkan ancaman ke orang lain." },
     ],
-    riskyFeedback: "This message uses fear of account loss and artificial time pressure. The URL 'bri-secure-login.xyz' is a fake domain.",
-    safeFeedback: "Well done! You recognized that fear-based threats combined with unofficial URLs are classic phishing patterns.",
+    riskyFeedback: "Pesan ini memanfaatkan rasa takut kehilangan akun dan ancaman waktu buatan. Domain 'bri-secure-login.xyz' adalah situs palsu.",
+    safeFeedback: "Bagus sekali! Anda mengenali bahwa ancaman pemblokiran dipadu domain tidak resmi adalah pola klasik penipuan siber.",
   },
   {
     id: 3,
@@ -73,15 +74,15 @@ const scenarios: Scenario[] = [
     platform: "email",
     subject: "MANDATORY: Account Credentials Security Check",
     message:
-      "Hello, this is Michael from IT Security. We detected a security breach on your account. I need your current password immediately so we can patch your access. This is mandatory — please reply within 10 minutes.",
+      "Halo, ini Michael dari Tim IT Security. Kami mendeteksi celah keamanan pada akun Anda. Kirimkan kata sandi Anda sekarang agar kami bisa memperbaruinya. Wajib dibalas dalam 10 menit.",
     choices: [
-      { label: "Share your password immediately", safe: false, explanation: "IT staff never need your password — this is a critical red flag." },
-      { label: "Ask for employee ID and ticket reference first", safe: true, explanation: "Smart — always verify authority claims through official directories." },
-      { label: "Call IT directly through official internal directory", safe: true, explanation: "Correct! Verify using known internal contact info, not theirs." },
-      { label: "Comply without question because it's IT Dept", safe: false, explanation: "Legitimate IT teams never ask for raw passwords via email or message." },
+      { label: "Berikan kata sandi Anda segera", safe: false, explanation: "Tim IT tidak pernah meminta kata sandi Anda — ini indikator bahaya utama." },
+      { label: "Minta ID karyawan dan nomor tiket resmi terlebih dahulu", safe: true, explanation: "Cerdas — selalu verifikasi klaim otoritas melalui prosedur resmi." },
+      { label: "Hubungi Tim IT melalui direktori internal perusahaan", safe: true, explanation: "Benar! Gunakan saluran komunikasi internal resmi." },
+      { label: "Langsung patuh karena mengatasnamakan Tim IT", safe: false, explanation: "Tim IT resmi tidak akan meminta kata sandi mentah melalui email/chat." },
     ],
-    riskyFeedback: "Authority manipulation is highly effective. Real IT departments use official ticketing systems and never request user passwords.",
-    safeFeedback: "Excellent! Recognizing authority impersonation is a vital skill. Always verify credentials through independent channels.",
+    riskyFeedback: "Penipuan berkedok otoritas sangat berbahaya. Tim IT resmi menggunakan portal terintegrasi dan tidak memintai kata sandi pengguna.",
+    safeFeedback: "Luar biasa! Mengidentifikasi penyamaran otoritas palsu adalah keterampilan krusial dalam keamanan siber.",
   },
   {
     id: 4,
@@ -94,13 +95,13 @@ const scenarios: Scenario[] = [
     message:
       "Selamat! Nomor WhatsApp Anda terpilih mendapatkan Grand Prize Voucher Belanja Rp10.000.000! Klaim sekarang dengan mengisi data KTP & nomor rekening di: http://promo-klaim-hadiah.win",
     choices: [
-      { label: "Fill in personal & banking details to claim", safe: false, explanation: "Sharing sensitive data for prizes leads to identity theft." },
-      { label: "Inspect the link and report as spam", safe: true, explanation: "Great job! Unsolicited prize claims asking for bank info are fraud." },
-      { label: "Pay the small 'admin fee' to release prize", safe: false, explanation: "Legitimate prizes never ask for advance payments or admin fees." },
-      { label: "Delete the message immediately", safe: true, explanation: "Safe choice. Free rewards requiring credentials are greed-trap phishing." },
+      { label: "Isi data pribadi & rekening untuk klaim", safe: false, explanation: "Membagikan data sensitif demi hadiah fiktif memicu pencurian identitas." },
+      { label: "Periksa tautan dan laporkan sebagai spam", safe: true, explanation: "Kerja bagus! Hadiah tanpa alasan yang meminta data bank adalah penipuan." },
+      { label: "Bayar sedikit 'biaya admin' untuk pencairan", safe: false, explanation: "Hadiah resmi tidak pernah meminta uang muka atau biaya pencairan." },
+      { label: "Hapus pesan secara langsung", safe: true, explanation: "Langkah aman. Iming-iming hadiah gratis adalah jebakan pemancingan data." },
     ],
-    riskyFeedback: "You fell for greed manipulation. Scammers use unrealistically generous offers to trick victims into giving away banking credentials.",
-    safeFeedback: "Outstanding! You resisted the temptation of unexpected prizes and identified the credential-harvesting trap.",
+    riskyFeedback: "Anda tergiur oleh iming-iming hadiah. Penipu menggunakan tawaran fantastis untuk menjebak korban menyerahkan kredensial.",
+    safeFeedback: "Hebat! Anda berhasil menahan diri dari godaan hadiah mendadak dan mengenali jebakan pencurian data.",
   },
 ];
 
@@ -112,14 +113,54 @@ export default function PhishSim() {
   const [results, setResults] = useState<boolean[]>([]);
 
   const scenario = scenarios[scenarioIndex];
-  const progress = (scenarioIndex / scenarios.length) * 100;
+  const progress = ((scenarioIndex + 1) / scenarios.length) * 100;
+
+  // Catat hasil keputusan ke Supabase secara asynchronous
+  async function recordLogToSupabase(choice: ScenarioChoice) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const scoreImpact = choice.safe ? 25 : -15;
+
+        // 1. Simpan Log ke Tabel simulation_logs
+        await supabase.from("simulation_logs").insert({
+          user_id: user.id,
+          scenario_id: scenario.id,
+          user_decision: `${scenario.trigger}: ${choice.label}`,
+          score_impact: scoreImpact,
+        });
+
+        // 2. Update overall_score di tabel profiles
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("overall_score")
+          .eq("id", user.id)
+          .single();
+
+        if (profile) {
+          const newScore = Math.min(Math.max(profile.overall_score + scoreImpact, 0), 100);
+          await supabase
+            .from("profiles")
+            .update({ overall_score: newScore })
+            .eq("id", user.id);
+        }
+      }
+    } catch (err) {
+      console.error("Gagal mencatat log simulasi ke Supabase:", err);
+    }
+  }
 
   function handleChoice(choiceIndex: number) {
     const choice = scenario.choices[choiceIndex];
     setSelectedChoice(choiceIndex);
     setPhase("feedback");
-    if (choice.safe) setScore((s) => s + 25);
+    
+    if (choice.safe) {
+      setScore((s) => s + 25);
+    }
+    
     setResults((r) => [...r, choice.safe]);
+    recordLogToSupabase(choice);
   }
 
   function handleNext() {
@@ -152,16 +193,16 @@ export default function PhishSim() {
             className="text-2xl font-bold text-white mb-2"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            Simulation Complete
+            Simulasi Selesai
           </h2>
           <p className="text-sm mb-6" style={{ color: "#7b90ad" }}>
-            You answered {passed} out of {scenarios.length} scenarios correctly
+            Anda berhasil menjawab {passed} dari {scenarios.length} skenario dengan aman
           </p>
           <div
             className="text-4xl font-bold mb-6"
             style={{ color: passed >= 3 ? "#22c55e" : "#ef4444", fontFamily: "var(--font-display)" }}
           >
-            {score} pts
+            +{score} pts
           </div>
           <button
             type="button"
@@ -175,7 +216,7 @@ export default function PhishSim() {
             className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all hover:bg-blue-600"
             style={{ background: "#1d4ed8" }}
           >
-            Try Again
+            Coba Latihan Lagi
           </button>
         </div>
       </div>
@@ -192,7 +233,7 @@ export default function PhishSim() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
           <div>
             <span className="text-xs font-medium" style={{ color: "#526380" }}>
-              Scenario {scenarioIndex + 1} of {scenarios.length}
+              Skenario {scenarioIndex + 1} dari {scenarios.length}
             </span>
           </div>
           <div className="flex items-center gap-3 sm:gap-4">
@@ -200,12 +241,12 @@ export default function PhishSim() {
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
               style={{ background: "#0f1629" }}
             >
-              <span className="text-xs" style={{ color: "#526380" }}>Score</span>
+              <span className="text-xs" style={{ color: "#526380" }}>Skor Perolehan</span>
               <span
                 className="text-sm font-bold"
                 style={{ color: "#60a5fa", fontFamily: "var(--font-mono)" }}
               >
-                {score}
+                +{score}
               </span>
             </div>
             <div
@@ -223,7 +264,7 @@ export default function PhishSim() {
                 className="text-xs font-semibold"
                 style={{ color: scenario.triggerColor }}
               >
-                Trigger: {scenario.trigger}
+                Pemicu: {scenario.trigger}
               </span>
             </div>
           </div>
@@ -249,7 +290,7 @@ export default function PhishSim() {
                 style={{ background: "#22c55e" }}
               />
               <span className="text-xs font-medium capitalize" style={{ color: "#526380" }}>
-                {scenario.platform === "whatsapp" ? "WhatsApp Simulation" : "Email Inbox Simulation"}
+                {scenario.platform === "whatsapp" ? "Simulasi WhatsApp Chat" : "Simulasi Email Inbox"}
               </span>
             </div>
 
@@ -276,7 +317,7 @@ export default function PhishSim() {
                     {scenario.sender}
                   </div>
                   <div className="text-xs" style={{ color: "#8696a0" }}>
-                    {scenario.platform === "whatsapp" ? "online" : "to: me@company.com"}
+                    {scenario.platform === "whatsapp" ? "online" : "ke: saya@perusahaan.com"}
                   </div>
                 </div>
               </div>
@@ -285,7 +326,7 @@ export default function PhishSim() {
               <div className="px-4 py-6 min-h-40">
                 {scenario.subject && (
                   <div className="text-xs font-bold text-blue-400 mb-2 border-b border-slate-700 pb-2">
-                    Subject: {scenario.subject}
+                    Subjek: {scenario.subject}
                   </div>
                 )}
                 <div className="flex justify-start">
@@ -320,17 +361,17 @@ export default function PhishSim() {
                   className="text-xs font-semibold mb-0.5"
                   style={{ color: scenario.triggerColor }}
                 >
-                  Emotional Trigger Detected: {scenario.trigger}
+                  Pemicu Emosi Terdeteksi: {scenario.trigger}
                 </div>
                 <div className="text-xs" style={{ color: "#7b90ad" }}>
-                  Notice how this message creates{" "}
+                  Perhatikan bagaimana pesan ini sengaja memicu{" "}
                   {scenario.trigger === "Urgency"
-                    ? "time pressure to force a hasty decision"
+                    ? "tekanan waktu untuk memaksa tindakan terburu-buru"
                     : scenario.trigger === "Fear"
-                    ? "anxiety about losing something important"
+                    ? "rasa cemas akan kehilangan aset atau pembekuan akun"
                     : scenario.trigger === "Authority"
-                    ? "deference to a perceived authority figure"
-                    : "excitement over unexpected financial gains"}
+                    ? "kepatuhan buta pada pihak yang mengatasnamakan otoritas"
+                    : "antusiasme atas keuntungan finansial instan"}
                   .
                 </div>
               </div>
@@ -348,10 +389,10 @@ export default function PhishSim() {
               className="text-base font-bold text-white mb-1"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              What would you do?
+              Tindakan apa yang akan Anda ambil?
             </h3>
             <p className="text-xs mb-5" style={{ color: "#526380" }}>
-              Choose your response carefully. Think before acting.
+              Pilih tindakan dengan cermat. Berpikir sejenak sebelum bertindak.
             </p>
 
             <div className="space-y-3">
@@ -431,7 +472,7 @@ export default function PhishSim() {
                   className="text-sm font-bold"
                   style={{ color: isSafe ? "#86efac" : "#fca5a5", fontFamily: "var(--font-display)" }}
                 >
-                  {isSafe ? "Safe Decision!" : "Risky Decision"}
+                  {isSafe ? "Keputusan Aman!" : "Keputusan Berisiko"}
                 </h4>
               </div>
               <p className="text-xs leading-relaxed mb-4" style={{ color: "#94a3b8" }}>
@@ -444,8 +485,8 @@ export default function PhishSim() {
                 style={{ background: "#1d4ed8" }}
               >
                 {scenarioIndex < scenarios.length - 1
-                  ? "Continue to Next Scenario →"
-                  : "View Final Results →"}
+                  ? "Lanjut ke Skenario Berikutnya →"
+                  : "Lihat Hasil Akhir →"}
               </button>
             </div>
           )}

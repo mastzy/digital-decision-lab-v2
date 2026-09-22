@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import logoImg from "../assets/logo.png";
+import { supabase } from "../lib/supabase";
 
 interface LoginProps {
   onLogin: () => void;
@@ -13,18 +14,59 @@ export default function Login({ onLogin }: LoginProps) {
   const [error, setError] = useState("");
   const [focused, setFocused] = useState<string | null>(null);
 
-  function handleSubmit(e: React.FormEvent) {
+  // Fungsi Login Asli ke Supabase
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email || !password) {
       setError("Please enter your email and password.");
       return;
     }
+    
     setError("");
     setLoading(true);
-    setTimeout(() => {
+
+    try {
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) {
+        // Jika akun belum terdaftar, coba daftarkan secara otomatis
+        if (authError.message.includes("Invalid login credentials")) {
+          const { error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+          });
+          
+          if (signUpError) {
+            setError(signUpError.message);
+          } else {
+            onLogin();
+          }
+        } else {
+          setError(authError.message);
+        }
+      } else {
+        onLogin();
+      }
+    } catch (err) {
+      setError("Terjadi kesalahan koneksi ke server.");
+    } finally {
       setLoading(false);
-      onLogin();
-    }, 1200);
+    }
+  }
+
+  // Fungsi Login OAuth Google Supabase
+  async function handleGoogleLogin() {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+      });
+      if (error) setError(error.message);
+    } catch (err) {
+      setError("Gagal menghubungkan ke Google Auth.");
+    }
   }
 
   const stats = [
@@ -198,7 +240,7 @@ export default function Login({ onLogin }: LoginProps) {
           {/* Social login */}
           <button
             type="button"
-            onClick={onLogin}
+            onClick={handleGoogleLogin}
             className="w-full flex items-center justify-center gap-3 py-3 rounded-xl text-sm font-medium transition-all hover:bg-[#1a2842] mb-5"
             style={{
               background: "#162035",
@@ -357,24 +399,27 @@ export default function Login({ onLogin }: LoginProps) {
             </button>
           </form>
 
-          {/* Register */}
-          <p className="text-center text-xs mt-6" style={{ color: "#526380" }}>
-            Don&apos;t have an account?{" "}
-            <button type="button" onClick={onLogin} className="font-semibold hover:underline" style={{ color: "#60a5fa" }}>
-              Request access
+          {/* Guest Access Option */}
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={onLogin}
+              className="w-full py-2.5 rounded-xl text-xs font-semibold text-blue-400 border border-blue-500/20 hover:bg-blue-500/10 transition-colors"
+            >
+              Continue as Guest Demo
             </button>
-          </p>
+          </div>
 
           {/* Security note */}
           <div
-            className="mt-8 flex items-center justify-center gap-2"
+            className="mt-6 flex items-center justify-center gap-2"
             style={{ color: "#3a4d63" }}
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
               <path d="M6 1L10.5 3.25V6C10.5 8.75 8.5 11 6 11.5C3.5 11 1.5 8.75 1.5 6V3.25L6 1Z" stroke="currentColor" strokeWidth="1" />
               <path d="M4 6l1.5 1.5L8 4.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <span className="text-xs">Protected by end-to-end encryption</span>
+            <span className="text-xs">Protected by Supabase Auth & End-to-End Encryption</span>
           </div>
         </div>
       </div>

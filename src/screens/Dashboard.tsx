@@ -1,6 +1,12 @@
 import React from "react";
+import { Screen } from "../App";
 
-export type Screen = "dashboard" | "phishsim" | "profile" | "phishshield" | "learning" | "settings";
+interface DashboardProps {
+  onNavigate: (screen: Screen) => void;
+  overallScore?: number;
+  simCount?: number;
+  recentActivity?: ActivityItem[];
+}
 
 export interface BehaviorDataItem {
   label: string;
@@ -25,7 +31,7 @@ const behaviorData: BehaviorDataItem[] = [
   { label: "Trust Resistance", value: 55, color: "#f59e0b", bg: "#431407" },
 ];
 
-const recentActivity: ActivityItem[] = [
+const defaultRecentActivity: ActivityItem[] = [
   { label: "Completed WhatsApp Fraud Sim", time: "2h ago", status: "safe", score: "+12 pts" },
   { label: "PhishShield analysis: Bank alert", time: "5h ago", status: "danger", score: "High Risk" },
   { label: "Authority impersonation training", time: "1d ago", status: "caution", score: "+8 pts" },
@@ -36,7 +42,7 @@ function RadarChart({ data }: { data: BehaviorDataItem[] }) {
   const cx = 110;
   const cy = 110;
   const r = 75;
-  const n = data.length || 1; // Mencegah pembagian dengan nol
+  const n = data.length || 1;
   const angles = data.map((_, i) => (Math.PI * 2 * i) / n - Math.PI / 2);
   const levels = [0.25, 0.5, 0.75, 1];
 
@@ -45,15 +51,15 @@ function RadarChart({ data }: { data: BehaviorDataItem[] }) {
     y: cy + r * ratio * Math.sin(angle),
   });
 
-  const valuePoints = data.map((d) => getPoint(angles[data.indexOf(d)], Math.min(Math.max(d.value, 0), 100) / 100));
+  const valuePoints = data.map((d) =>
+    getPoint(angles[data.indexOf(d)], Math.min(Math.max(d.value, 0), 100) / 100)
+  );
   const polygonPoints = valuePoints.map((p) => `${p.x},${p.y}`).join(" ");
 
   return (
     <svg
       viewBox="0 0 220 220"
-      className="w-full .max-w-\[220px\] {
- max-width: 220px;
-} mx-auto"
+      className="w-full max-w-[220px] mx-auto"
       role="img"
       aria-label="Behavioral Vulnerability Radar Chart"
     >
@@ -126,13 +132,21 @@ function RadarChart({ data }: { data: BehaviorDataItem[] }) {
   );
 }
 
-export default function Dashboard({ onNavigate }: { onNavigate: (s: Screen) => void }) {
+export default function Dashboard({
+  onNavigate,
+  overallScore = 78,
+  simCount = 12,
+  recentActivity = defaultRecentActivity,
+}: DashboardProps) {
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">
       {/* Hero */}
       <div
         className="rounded-2xl p-5 sm:p-7 relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg, #0f2347 0%, #162035 60%, #0f1629 100%)" }}
+        style={{
+          background:
+            "linear-gradient(135deg, #0f2347 0%, #162035 60%, #0f1629 100%)",
+        }}
       >
         <div
           className="absolute top-0 right-0 w-80 h-full opacity-5 pointer-events-none"
@@ -156,14 +170,20 @@ export default function Dashboard({ onNavigate }: { onNavigate: (s: Screen) => v
             </div>
             <div
               className="w-full sm:w-auto text-left sm:text-right px-4 py-3 rounded-xl flex sm:block justify-between items-center"
-              style={{ background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.2)" }}
+              style={{
+                background: "rgba(59,130,246,0.12)",
+                border: "1px solid rgba(59,130,246,0.2)",
+              }}
             >
               <div>
                 <div
                   className="text-2xl sm:text-3xl font-bold"
-                  style={{ color: "#60a5fa", fontFamily: "var(--font-display)" }}
+                  style={{
+                    color: "#60a5fa",
+                    fontFamily: "var(--font-display)",
+                  }}
                 >
-                  78
+                  {overallScore}
                 </div>
                 <div className="text-xs" style={{ color: "#526380" }}>
                   Overall Readiness Score
@@ -178,23 +198,48 @@ export default function Dashboard({ onNavigate }: { onNavigate: (s: Screen) => v
           {/* Stats row */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-6">
             {[
-              { label: "Simulations Done", value: "12", sub: "this month", color: "#60a5fa" },
-              { label: "Current Streak", value: "5 days", sub: "keep going!", color: "#fcd34d" },
-              { label: "Rank", value: "#23", sub: "top 8% globally", color: "#86efac" },
+              {
+                label: "Simulations Done",
+                value: `${simCount}`,
+                sub: "completed session",
+                color: "#60a5fa",
+              },
+              {
+                label: "Current Streak",
+                value: "5 days",
+                sub: "keep going!",
+                color: "#fcd34d",
+              },
+              {
+                label: "Rank",
+                value: "#23",
+                sub: "top 8% globally",
+                color: "#86efac",
+              },
             ].map((stat) => (
               <div
                 key={stat.label}
                 className="rounded-xl px-4 py-3"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                }}
               >
                 <div
                   className="text-xl font-bold"
-                  style={{ color: stat.color, fontFamily: "var(--font-display)" }}
+                  style={{
+                    color: stat.color,
+                    fontFamily: "var(--font-display)",
+                  }}
                 >
                   {stat.value}
                 </div>
-                <div className="text-xs font-medium text-white mt-0.5">{stat.label}</div>
-                <div className="text-xs" style={{ color: "#526380" }}>{stat.sub}</div>
+                <div className="text-xs font-medium text-white mt-0.5">
+                  {stat.label}
+                </div>
+                <div className="text-xs" style={{ color: "#526380" }}>
+                  {stat.sub}
+                </div>
               </div>
             ))}
           </div>
@@ -225,7 +270,11 @@ export default function Dashboard({ onNavigate }: { onNavigate: (s: Screen) => v
                 type="button"
                 onClick={() => onNavigate("profile")}
                 className="text-xs px-3 py-1.5 rounded-lg transition-colors hover:bg-blue-500/20"
-                style={{ color: "#60a5fa", background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)" }}
+                style={{
+                  color: "#60a5fa",
+                  background: "rgba(59,130,246,0.1)",
+                  border: "1px solid rgba(59,130,246,0.2)",
+                }}
               >
                 Full report →
               </button>
@@ -242,7 +291,10 @@ export default function Dashboard({ onNavigate }: { onNavigate: (s: Screen) => v
                       </span>
                       <span
                         className="text-xs font-semibold"
-                        style={{ color: d.color, fontFamily: "var(--font-mono)" }}
+                        style={{
+                          color: d.color,
+                          fontFamily: "var(--font-mono)",
+                        }}
                       >
                         {d.value}%
                       </span>
@@ -253,7 +305,10 @@ export default function Dashboard({ onNavigate }: { onNavigate: (s: Screen) => v
                     >
                       <div
                         className="h-full rounded-full transition-all duration-300"
-                        style={{ width: `${Math.min(Math.max(d.value, 0), 100)}%`, background: d.color }}
+                        style={{
+                          width: `${Math.min(Math.max(d.value, 0), 100)}%`,
+                          background: d.color,
+                        }}
                       />
                     </div>
                   </div>
@@ -265,18 +320,22 @@ export default function Dashboard({ onNavigate }: { onNavigate: (s: Screen) => v
           {/* Vulnerability callout */}
           <div
             className="mt-4 flex items-center gap-3 px-4 py-3 rounded-xl"
-            style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}
+            style={{
+              background: "rgba(239,68,68,0.08)",
+              border: "1px solid rgba(239,68,68,0.2)",
+            }}
           >
             <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center .flex-shrink-0 {
- flex-shrink: 0;
-} text-sm"
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm"
               style={{ background: "rgba(239,68,68,0.15)" }}
             >
               ⚠
             </div>
             <div>
-              <div className="text-xs font-semibold" style={{ color: "#fca5a5" }}>
+              <div
+                className="text-xs font-semibold"
+                style={{ color: "#fca5a5" }}
+              >
                 Biggest Vulnerability: Urgency
               </div>
               <div className="text-xs" style={{ color: "#7b90ad" }}>
@@ -302,15 +361,33 @@ export default function Dashboard({ onNavigate }: { onNavigate: (s: Screen) => v
                 className="w-11 h-11 rounded-xl flex items-center justify-center"
                 style={{ background: "#1d4ed8" }}
               >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path d="M3 4h14v10a2 2 0 01-2 2H5a2 2 0 01-2-2V4z" stroke="white" strokeWidth="1.4" />
-                  <path d="M3 4l7 6 7-6" stroke="white" strokeWidth="1.4" strokeLinejoin="round" />
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M3 4h14v10a2 2 0 01-2 2H5a2 2 0 01-2-2V4z"
+                    stroke="white"
+                    strokeWidth="1.4"
+                  />
+                  <path
+                    d="M3 4l7 6 7-6"
+                    stroke="white"
+                    strokeWidth="1.4"
+                    strokeLinejoin="round"
+                  />
                   <circle cx="15" cy="5" r="3" fill="#ef4444" />
                 </svg>
               </div>
               <span
                 className="text-xs px-2 py-1 rounded-full font-semibold"
-                style={{ background: "rgba(59,130,246,0.15)", color: "#60a5fa" }}
+                style={{
+                  background: "rgba(59,130,246,0.15)",
+                  color: "#60a5fa",
+                }}
               >
                 3 new
               </span>
@@ -322,7 +399,8 @@ export default function Dashboard({ onNavigate }: { onNavigate: (s: Screen) => v
               PhishSim
             </h3>
             <p className="text-xs mb-4" style={{ color: "#7b90ad" }}>
-              Test your responses to real-world phishing and social engineering scenarios.
+              Test your responses to real-world phishing and social engineering
+              scenarios.
             </p>
             <button
               type="button"
@@ -347,18 +425,33 @@ export default function Dashboard({ onNavigate }: { onNavigate: (s: Screen) => v
                 className="w-11 h-11 rounded-xl flex items-center justify-center"
                 style={{ background: "#15803d" }}
               >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  aria-hidden="true"
+                >
                   <path
                     d="M10 2L17 5.5V10C17 14.5 13.5 17.5 10 18C6.5 17.5 3 14.5 3 10V5.5L10 2Z"
                     stroke="white"
                     strokeWidth="1.4"
                   />
-                  <path d="M7 10l2 2 4-4" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M7 10l2 2 4-4"
+                    stroke="white"
+                    strokeWidth="1.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </div>
               <span
                 className="text-xs px-2 py-1 rounded-full font-semibold"
-                style={{ background: "rgba(34,197,94,0.12)", color: "#86efac" }}
+                style={{
+                  background: "rgba(34,197,94,0.12)",
+                  color: "#86efac",
+                }}
               >
                 Rule-Based
               </span>
@@ -408,25 +501,28 @@ export default function Dashboard({ onNavigate }: { onNavigate: (s: Screen) => v
                     style={{ borderColor: "#162035" }}
                   >
                     <div
-                      className="w-2 h-2 rounded-full mt-1.5 .flex-shrink-0 {
- flex-shrink: 0;
-}"
-                      style={{ background: statusColors[item.status] }}
+                      className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0"
+                      style={{
+                        background:
+                          statusColors[item.status] || statusColors.safe,
+                      }}
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-white font-medium leading-snug">
                         {item.label}
                       </p>
-                      <p className="text-xs mt-0.5" style={{ color: "#526380" }}>
+                      <p
+                        className="text-xs mt-0.5"
+                        style={{ color: "#526380" }}
+                      >
                         {item.time}
                       </p>
                     </div>
                     <span
-                      className="text-xs font-semibold .flex-shrink-0 {
- flex-shrink: 0;
-}"
+                      className="text-xs font-semibold flex-shrink-0"
                       style={{
-                        color: statusColors[item.status],
+                        color:
+                          statusColors[item.status] || statusColors.safe,
                         fontFamily: "var(--font-mono)",
                       }}
                     >

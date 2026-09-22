@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { supabase } from "../lib/supabase";
 
 interface AnalysisResult {
   riskLevel: "high" | "medium" | "low";
@@ -99,13 +100,30 @@ export default function PhishShield() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
 
-  function handleAnalyze() {
+  async function handleAnalyze() {
     if (!input.trim()) return;
     setAnalyzing(true);
     setResult(null);
-    setTimeout(() => {
-      setResult(analyzeText(input));
+
+    setTimeout(async () => {
+      const res = analyzeText(input);
+      setResult(res);
       setAnalyzing(false);
+
+      // Log hasil pemindaian ke Supabase
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from("phishshield_logs").insert({
+            user_id: user.id,
+            scanned_content: input.substring(0, 150),
+            risk_level: res.riskLevel,
+            analysis_result: JSON.stringify(res.triggers),
+          });
+        }
+      } catch (err) {
+        console.error("Gagal mencatat log PhishShield ke Supabase:", err);
+      }
     }, 1000);
   }
 
@@ -293,9 +311,7 @@ export default function PhishShield() {
                 }}
               >
                 <div
-                  className="w-2 h-2 rounded-full .flex-shrink-0 {
- flex-shrink: 0;
-}"
+                  className="w-2 h-2 rounded-full flex-shrink-0"
                   style={{ background: riskConfig[result.riskLevel].color }}
                 />
                 <span
@@ -362,9 +378,7 @@ export default function PhishShield() {
                       }}
                     >
                       <div
-                        className="w-5 h-5 rounded-full flex items-center justify-center .flex-shrink-0 {
- flex-shrink: 0;
-} text-xs font-bold"
+                        className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold"
                         style={{ background: "rgba(239,68,68,0.2)", color: "#ef4444" }}
                       >
                         !

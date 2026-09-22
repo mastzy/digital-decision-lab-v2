@@ -1,42 +1,127 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import logoImg from "./assets/logo.png";
 import Login from "./screens/Login";
 import Dashboard from "./screens/Dashboard";
 import PhishSim from "./screens/PhishSim";
 import BehavioralProfile from "./screens/BehavioralProfile";
 import PhishShield from "./screens/PhishShield";
-import LearningProgress from "./screens/LearningProgress";
 import Settings from "./screens/Settings";
+import { supabase } from "./lib/supabase";
 
 export type Screen =
   | "dashboard"
   | "phishsim"
   | "profile"
   | "phishshield"
-  | "learning"
   | "settings";
 
-const navItems: { id: Screen; label: string; icon: string; badge?: number }[] =
-  [
-    { id: "dashboard", label: "Dashboard", icon: "⬡" },
-    { id: "phishsim", label: "PhishSim", icon: "◎", badge: 3 },
-    { id: "profile", label: "Behavioral Profile", icon: "◈" },
-    { id: "phishshield", label: "PhishShield", icon: "◆" },
-    { id: "learning", label: "Learning Progress", icon: "◐" },
-  ];
+export interface ActivityItem {
+  id?: string | number;
+  label: string;
+  time: string;
+  status: "safe" | "danger" | "caution";
+  score: string;
+}
+
+const navItems: { id: Screen; label: string; icon: string; badge?: number }[] = [
+  { id: "dashboard", label: "Dashboard", icon: "⬡" },
+  { id: "phishsim", label: "PhishSim", icon: "◎", badge: 3 },
+  { id: "profile", label: "Behavioral Profile", icon: "◈" },
+  { id: "phishshield", label: "PhishShield", icon: "◆" },
+];
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [active, setActive] = useState<Screen>("dashboard");
+  const [overallScore, setOverallScore] = useState<number>(78);
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [userEmail, setUserEmail] = useState<string>("");
 
-  if (!loggedIn) return <Login onLogin={() => setLoggedIn(true)} />;
+  // 1. Cek Sesi User & Load Data Real-Time dari Supabase
+  useEffect(() => {
+    // Cek status auth aktif saat pertama dimuat
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setLoggedIn(true);
+        setUserEmail(session.user.email || "User");
+        fetchUserData(session.user.id);
+      }
+    });
+
+    // Listener otomatis jika status auth berubah (login/logout)
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (session?.user) {
+          setLoggedIn(true);
+          setUserEmail(session.user.email || "User");
+          fetchUserData(session.user.id);
+        } else {
+          setLoggedIn(false);
+          setUserEmail("");
+        }
+      }
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  // 2. Fungsi Ambil Data User & Log dari Supabase Database
+  const fetchUserData = async (userId: string) => {
+    try {
+      // Ambil Skor dari tabel profiles
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("overall_score")
+        .eq("id", userId)
+        .single();
+
+      if (profile) {
+        setOverallScore(profile.overall_score);
+      }
+
+      // Ambil 5 riwayat simulasi terakhir dari tabel simulation_logs
+      const { data: logs } = await supabase
+        .from("simulation_logs")
+        .select("id, user_decision, score_impact, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (logs) {
+        const formattedActivities: ActivityItem[] = logs.map((log) => ({
+          id: log.id,
+          label: `Simulasi: ${log.user_decision}`,
+          time: new Date(log.created_at).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          status: log.score_impact >= 0 ? "safe" : "danger",
+          score: `${log.score_impact >= 0 ? "+" : ""}${log.score_impact} pts`,
+        }));
+        setActivities(formattedActivities);
+      }
+    } catch (err) {
+      console.error("Gagal mengambil data dari Supabase:", err);
+    }
+  };
+
+  // 3. Fungsi Logout Asli dari Supabase
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setLoggedIn(false);
+  };
+
+  if (!loggedIn) {
+    return <Login onLogin={() => setLoggedIn(true)} />;
+  }
 
   const screenMap: Record<Screen, React.ReactNode> = {
-    dashboard: <Dashboard onNavigate={setActive} />,
+    dashboard: <Dashboard onNavigate={(s) => setActive(s)} />,
     phishsim: <PhishSim />,
-    profile: <BehavioralProfile onNavigate={setActive} />,
+    profile: <BehavioralProfile onNavigate={(s) => setActive(s)} />,
     phishshield: <PhishShield />,
-    learning: <LearningProgress />,
     settings: <Settings />,
   };
 
@@ -47,23 +132,31 @@ export default function App() {
     >
       {/* Sidebar Desktop */}
       <aside
-        className="hidden lg:flex flex-col w-64 flex-shrink-0 border-r"
+        className="hidden lg:flex flex-col w-64 .flex-shrink-0 {
+ flex-shrink: 0;
+} border-r"
         style={{
           background: "#060d1f",
           borderColor: "#162035",
         }}
       >
         {/* Logo Gambar Otak Siber Desktop */}
-        <div className="px-5 py-5 border-b flex items-center justify-center" style={{ borderColor: "#162035" }}>
-          <img 
-            src={logoImg} 
-            alt="Digital Decision Lab Logo" 
+        <div
+          className="px-5 py-5 border-b flex items-center justify-center"
+          style={{ borderColor: "#162035" }}
+        >
+          <img
+            src={logoImg}
+            alt="Digital Decision Lab Logo"
             className="h-10 w-auto object-contain"
           />
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto" aria-label="Main Navigation">
+        <nav
+          className="flex-1 px-3 py-4 space-y-1 overflow-y-auto"
+          aria-label="Main Navigation"
+        >
           {navItems.map((item) => {
             const isActive = active === item.id;
             return (
@@ -71,7 +164,11 @@ export default function App() {
                 key={item.id}
                 type="button"
                 onClick={() => setActive(item.id)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 hover:bg-[#162035]/60"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 @media (hover: hover) {
+ .hover\:bg-\[\#162035\]\/60:hover {
+ background-color: color-mix(in oklab, #162035 60%, transparent);
+ }
+}"
                 style={{
                   background: isActive ? "#162035" : "transparent",
                   borderLeft: isActive
@@ -110,11 +207,18 @@ export default function App() {
         </nav>
 
         {/* Sidebar Bottom */}
-        <div className="px-3 pb-4 space-y-1 border-t pt-3" style={{ borderColor: "#162035" }}>
+        <div
+          className="px-3 pb-4 space-y-1 border-t pt-3"
+          style={{ borderColor: "#162035" }}
+        >
           <button
             type="button"
             onClick={() => setActive("settings")}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 hover:bg-[#162035]/60"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 @media (hover: hover) {
+ .hover\:bg-\[\#162035\]\/60:hover {
+ background-color: color-mix(in oklab, #162035 60%, transparent);
+ }
+}"
             style={{
               background: active === "settings" ? "#162035" : "transparent",
               borderLeft:
@@ -149,24 +253,26 @@ export default function App() {
           >
             <div className="flex items-center gap-3 min-w-0">
               <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white .flex-shrink-0 {
+ flex-shrink: 0;
+}"
                 style={{ background: "#1d4ed8" }}
               >
-                AR
+                {userEmail.substring(0, 2).toUpperCase() || "US"}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-semibold text-white truncate">
-                  Alex Rivera
+                  {userEmail || "User"}
                 </div>
                 <div className="text-xs" style={{ color: "#526380" }}>
-                  Level 4 · Analyst
+                  Active Analyst
                 </div>
               </div>
             </div>
             <button
               type="button"
               title="Logout"
-              onClick={() => setLoggedIn(false)}
+              onClick={handleLogout}
               className="text-xs text-slate-500 hover:text-red-400 p-1 transition-colors"
               aria-label="Log out"
             >
@@ -180,15 +286,17 @@ export default function App() {
       <main className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Top Header */}
         <header
-          className="flex items-center justify-between px-4 lg:px-8 py-3 lg:py-4 border-b flex-shrink-0"
+          className="flex items-center justify-between px-4 lg:px-8 py-3 lg:py-4 border-b .flex-shrink-0 {
+ flex-shrink: 0;
+}"
           style={{ borderColor: "#162035", background: "#060d1f" }}
         >
           <div className="flex items-center gap-3">
             {/* Logo Mobile */}
             <div className="lg:hidden flex items-center">
-              <img 
-                src={logoImg} 
-                alt="Digital Decision Lab Logo" 
+              <img
+                src={logoImg}
+                alt="Digital Decision Lab Logo"
                 className="h-7 w-auto object-contain"
               />
             </div>
@@ -201,7 +309,7 @@ export default function App() {
                   active.charAt(0).toUpperCase() + active.slice(1)}
               </h1>
               <p className="text-[10px] lg:text-xs" style={{ color: "#526380" }}>
-                Friday, August 21, 2026
+                Tuesday, September 22, 2026
               </p>
             </div>
           </div>
@@ -211,8 +319,17 @@ export default function App() {
               className="flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3 py-1 lg:py-1.5 rounded-lg"
               style={{ background: "#162035" }}
             >
-              <span className="text-xs lg:text-sm" role="img" aria-label="streak fire">🔥</span>
-              <span className="text-xs font-semibold" style={{ color: "#fcd34d" }}>
+              <span
+                className="text-xs lg:text-sm"
+                role="img"
+                aria-label="streak fire"
+              >
+                🔥
+              </span>
+              <span
+                className="text-xs font-semibold"
+                style={{ color: "#fcd34d" }}
+              >
                 5-day streak
               </span>
             </div>
@@ -229,17 +346,27 @@ export default function App() {
                 className="text-xs font-semibold"
                 style={{ color: "#86efac", fontFamily: "var(--font-mono)" }}
               >
-                78/100
+                {overallScore}/100
               </span>
             </div>
 
             <button
               type="button"
               aria-label="Notifications"
-              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-[#162035]/60"
+              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors @media (hover: hover) {
+ .hover\:bg-\[\#162035\]\/60:hover {
+ background-color: color-mix(in oklab, #162035 60%, transparent);
+ }
+}"
               style={{ background: "#162035", color: "#7b90ad" }}
             >
-              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 15 15"
+                fill="none"
+                aria-hidden="true"
+              >
                 <path
                   d="M7.5 1C7.5 1 4 3 4 8v2l-1 1v1h9v-1l-1-1V8c0-5-3.5-7-3.5-7Z"
                   stroke="currentColor"
