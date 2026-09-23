@@ -19,3 +19,7 @@ logs/
 /.plugins/
 /.opencode-skills/
 .vercel
+# .gitignore
+node_modules
+.env
+scraper_scenario.py

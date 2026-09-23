@@ -9,7 +9,93 @@ interface AnalysisResult {
   primaryTrigger: "Urgency" | "Fear" | "Authority" | "Greed" | "Trust" | "Safe";
 }
 
-function analyzeText(text: string): AnalysisResult {
+// 1. Analisis AI Menggunakan OpenAI API
+async function analyzeWithOpenAI(userInput: string): Promise<AnalysisResult | null> {
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `Kamu adalah pakar analisis keamanan siber. Analisis pesan berikut untuk mendeteksi penipuan/phishing.
+Tentukan format output HANYA dalam JSON valid tanpa markdown/backticks:
+{
+  "riskLevel": "high" | "medium" | "low",
+  "riskScore": angka 0-100,
+  "primaryTrigger": "Urgency" | "Fear" | "Authority" | "Greed" | "Trust" | "Safe",
+  "triggers": ["array indikator bahaya dalam Bahasa Indonesia"],
+  "explanation": "penjelasan ringkas bahasa awam dalam Bahasa Indonesia"
+}`,
+          },
+          { role: "user", content: userInput },
+        ],
+      }),
+    });
+
+    const data = await response.json();
+    const rawContent = data.choices[0].message.content.trim();
+    const cleanJson = rawContent.replace(/^```json/, "").replace(/```$/, "").trim();
+    return JSON.parse(cleanJson) as AnalysisResult;
+  } catch (err) {
+    console.error("Gagal melakukan analisis OpenAI API:", err);
+    return null;
+  }
+}
+
+// 2. Pemindaian URL Menggunakan VirusTotal API
+async function analyzeWithVirusTotal(urlToScan: string): Promise<AnalysisResult | null> {
+  const apiKey = import.meta.env.VITE_VIRUSTOTAL_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const formData = new FormData();
+    formData.append("url", urlToScan);
+
+    const scanRes = await fetch("https://www.virustotal.com/api/v3/urls", {
+      method: "POST",
+      headers: { "x-apikey": apiKey },
+      body: formData,
+    });
+    const scanData = await scanRes.json();
+    const analysisId = scanData.data.id;
+
+    const resultRes = await fetch(`https://www.virustotal.com/api/v3/analyses/${analysisId}`, {
+      headers: { "x-apikey": apiKey },
+    });
+    const resultData = await resultRes.json();
+    const stats = resultData.data.attributes.stats;
+
+    const isMalicious = stats.malicious > 0;
+    const isSuspicious = stats.suspicious > 0;
+
+    return {
+      riskLevel: isMalicious ? "high" : isSuspicious ? "medium" : "low",
+      riskScore: isMalicious ? 90 : isSuspicious ? 50 : 10,
+      triggers: isMalicious
+        ? [`Terdeteksi berbahaya oleh ${stats.malicious} mesin antivirus VirusTotal`]
+        : ["Domain tidak terdaftar dalam basis data berbahaya global"],
+      explanation: isMalicious
+        ? "Tautan ini telah dilaporkan secara global sebagai situs berbahaya atau phishing."
+        : "Tautan ini terverifikasi bersih oleh basis data keamanan global VirusTotal.",
+      primaryTrigger: isMalicious ? "Fear" : "Safe",
+    };
+  } catch (err) {
+    console.error("Gagal melakukan analisis VirusTotal API:", err);
+    return null;
+  }
+}
+
+// 3. Fallback Rule-Based Scanner Lokal
+function analyzeTextLocal(text: string): AnalysisResult {
   const lower = text.toLowerCase();
   const triggers: string[] = [];
   let riskScore = 0;
@@ -18,7 +104,7 @@ function analyzeText(text: string): AnalysisResult {
   const fearWords = ["suspended", "blocked", "closed", "unauthorized", "compromised", "breach", "hacked", "violation", "penalty", "diblokir", "diretas", "sanksi", "pidana", "pembekuan"];
   const greedWords = ["won", "winner", "prize", "free", "gift", "reward", "congratulations", "selected", "lucky", "hadiah", "gratis", "menang", "voucher", "cashback", "klaim"];
   const authorityWords = ["bank", "government", "police", "irs", "microsoft", "apple", "amazon", "official", "ceo", "manager", "it department", "bri", "bca", "mandiri", "bni", "pajak", "polri", "kurir"];
-  
+
   const linkPatterns = /http[s]?:\/\/[^\s]+/g;
   const apkPattern = /\.apk(\?|\s|$)/i;
   const suspiciousLinks = text.match(linkPatterns);
@@ -105,26 +191,40 @@ export default function PhishShield() {
     setAnalyzing(true);
     setResult(null);
 
-    setTimeout(async () => {
-      const res = analyzeText(input);
-      setResult(res);
-      setAnalyzing(false);
+    let res: AnalysisResult | null = null;
+    const containsUrl = /http[s]?:\/\/[^\s]+/.test(input);
 
-      // Log hasil pemindaian ke Supabase
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await supabase.from("phishshield_logs").insert({
-            user_id: user.id,
-            scanned_content: input.substring(0, 150),
-            risk_level: res.riskLevel,
-            analysis_result: JSON.stringify(res.triggers),
-          });
-        }
-      } catch (err) {
-        console.error("Gagal mencatat log PhishShield ke Supabase:", err);
+    if (containsUrl) {
+      const urlMatch = input.match(/http[s]?:\/\/[^\s]+/);
+      if (urlMatch) {
+        res = await analyzeWithVirusTotal(urlMatch[0]);
       }
-    }, 1000);
+    }
+
+    if (!res) {
+      res = await analyzeWithOpenAI(input);
+    }
+
+    if (!res) {
+      res = analyzeTextLocal(input);
+    }
+
+    setResult(res);
+    setAnalyzing(false);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from("phishshield_logs").insert({
+          user_id: user.id,
+          scanned_content: input.substring(0, 150),
+          risk_level: res.riskLevel,
+          analysis_result: JSON.stringify(res.triggers),
+        });
+      }
+    } catch (err) {
+      console.error("Gagal mencatat log PhishShield ke Supabase:", err);
+    }
   }
 
   const riskConfig = {
@@ -228,7 +328,7 @@ export default function PhishShield() {
                   className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin"
                   style={{ borderColor: "#60a5fa", borderTopColor: "transparent" }}
                 />
-                Analyzing...
+                Analyzing with AI & API...
               </>
             ) : (
               "Analyze Message →"

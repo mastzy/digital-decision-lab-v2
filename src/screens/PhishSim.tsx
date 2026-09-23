@@ -10,7 +10,7 @@ export interface ScenarioChoice {
 }
 
 export interface Scenario {
-  id: number;
+  id: number | string;
   trigger: "Urgency" | "Fear" | "Authority" | "Greed";
   triggerColor: string;
   sender: string;
@@ -24,96 +24,224 @@ export interface Scenario {
   safeFeedback: string;
 }
 
-const scenarios: Scenario[] = [
+// 1. Bank Skenario Riil Tren Penipuan Siber di Indonesia
+const defaultScenarios: Scenario[] = [
   {
     id: 1,
     trigger: "Urgency",
     triggerColor: "#ef4444",
-    sender: "Rian",
-    avatar: "R",
-    time: "11:42 AM",
+    sender: "J&T Express Kurir",
+    avatar: "J",
+    time: "10:15 AM",
     platform: "whatsapp",
     message:
-      "Hi, ini Rian. HP gue rusak parah. Urgent banget butuh Rp500.000 buat biaya dokter darurat. Tolong transfer ke rekening ini sekarang ya. Besok langsung gue ganti.",
+      "Paket Anda dengan resi JT9820129 gagal dikirim karena alamat tidak lengkap. Silakan unduh aplikasi pelacakan resi resmi berikut untuk memperbarui alamat: http://jt-express-resi.com/Cek_Paket.apk",
     choices: [
-      { label: "Transfer uangnya secara langsung", safe: false, explanation: "Anda bertindak spontan di bawah tekanan urgensi tanpa verifikasi." },
-      { label: "Telepon langsung nomor pribadinya via panggilan seluler", safe: true, explanation: "Sangat baik! Telepon langsung memastikan identitas sebelum transfer." },
-      { label: "Minta verifikasi identitas melalui pesan suara (voice note)", safe: true, explanation: "Langkah cerdas — selalu verifikasi suara/identitas sebelum kirim uang." },
-      { label: "Abaikan atau blokir kontak tidak terverifikasi", safe: true, explanation: "Pilihan aman. Mengabaikan permintaan urgent tak dikenal melindungi Anda." },
+      { label: "Unduh dan pasang file .APK tersebut", safe: false, explanation: "File .APK tersebut adalah malware pencuri SMS OTP perbankan Anda." },
+      { label: "Cek resi secara manual di aplikasi resmi J&T di PlayStore", safe: true, explanation: "Langkah tepat! Selalu gunakan aplikasi resmi dari store terpercaya." },
+      { label: "Minta kurir mengirimkan foto fisik paketnya", safe: true, explanation: "Meminta bukti fisik sebelum bertindak membantu memverifikasi klaim." },
+      { label: "Abaikan dan laporkan nomor sebagai spam", safe: true, explanation: "Tindakan paling aman terhadap pesan berfile .APK mencurigakan." },
     ],
-    riskyFeedback: "Anda bertindak terburu-buru akibat pemicu urgensi. Penipu memanfaatkan cerita darurat agar korban tidak sempat berpikir jernih.",
-    safeFeedback: "Insting yang luar biasa! Melakukan verifikasi melalui jalur terpisah adalah cara paling efektif menangani manipulasi urgensi.",
+    riskyFeedback: "Anda terjebak manipulasi urgensi paket. Penipu memanfaatkan kekhawatiran paket hilang agar Anda memasang malware .APK.",
+    safeFeedback: "Sempurna! Anda berhasil menghindari jebakan malware .APK yang mengatasnamakan jasa kurir.",
   },
   {
     id: 2,
     trigger: "Fear",
     triggerColor: "#f59e0b",
-    sender: "BRI Alert System",
-    avatar: "B",
-    time: "2:15 PM",
-    platform: "email",
-    subject: "⚠️ PERINGATAN: Akun Anda Dibekukan Sementara",
+    sender: "PLN Official Alert",
+    avatar: "P",
+    time: "02:30 PM",
+    platform: "whatsapp",
     message:
-      "Kami mendeteksi aktivitas mencurigakan pada rekening Anda. Klik tautan berikut segera untuk memulihkan akses, atau rekening Anda akan ditutup permanen dalam 2 jam: http://bri-secure-login.xyz/restore",
+      "PEMBERITAHUAN PLN: Tunggakan listrik ID Pelanggan 5382910292 sebesar Rp1.450.000 belum dilunasi. Pemutusan aliran listrik akan dilakukan otomatis dalam 1 jam. Pelajari rincian tagihan: http://pln-pembayaran-denda.xyz",
     choices: [
-      { label: "Klik tautan segera untuk memulihkan akun", safe: false, explanation: "Tautan mengarah ke situs phishing. Bank resmi tidak pernah mengirim tautan login seperti ini." },
-      { label: "Hubungi call center resmi bank secara langsung", safe: true, explanation: "Sempurna — selalu gunakan nomor kontak resmi dari situs/kartu ATM." },
-      { label: "Cek status rekening via aplikasi resmi BRImo", safe: true, explanation: "Benar! Aplikasi mobile resmi menampilkan status asli akun Anda." },
-      { label: "Teruskan pesan ke teman/keluarga untuk minta saran", safe: false, explanation: "Meneruskan tautan phishing berisiko menyebarkan ancaman ke orang lain." },
+      { label: "Klik link untuk segera melunasi denda", safe: false, explanation: "Link mengarahkan ke situs phishing pencuri data kartu kredit/debit." },
+      { label: "Cek ID Pelanggan via aplikasi PLN Mobile resmi", safe: true, explanation: "Benar! PLN Mobile menampilkan status tagihan yang sesungguhnya." },
+      { label: "Datang atau hubungi Call Center 123 PLN", safe: true, explanation: "Memastikan ke saluran resmi menghindarkan Anda dari penipuan." },
+      { label: "Abaikan pesan denda tidak dikenal ini", safe: true, explanation: "Tindakan aman terhadap gertakan pemutusan listrik mendadak." },
     ],
-    riskyFeedback: "Pesan ini memanfaatkan rasa takut kehilangan akun dan ancaman waktu buatan. Domain 'bri-secure-login.xyz' adalah situs palsu.",
-    safeFeedback: "Bagus sekali! Anda mengenali bahwa ancaman pemblokiran dipadu domain tidak resmi adalah pola klasik penipuan siber.",
+    riskyFeedback: "Ancaman pemutusan listrik dalam 1 jam memicu rasa takut. Ini adalah metode manipulasi psikologis agar korban tidak sempat berpikir jernih.",
+    safeFeedback: "Bagus sekali! Anda menahan diri dari kepanikan dan memverifikasi tagihan melalui aplikasi resmi PLN.",
   },
   {
     id: 3,
     trigger: "Authority",
     triggerColor: "#a78bfa",
-    sender: "IT Security Dept",
-    avatar: "IT",
-    time: "9:03 AM",
+    sender: "Direktorat Jenderal Pajak",
+    avatar: "D",
+    time: "09:00 AM",
     platform: "email",
-    subject: "MANDATORY: Account Credentials Security Check",
+    subject: "URGENT: Peringatan Kurang Bayar Pajak SPT Tahunan",
     message:
-      "Halo, ini Michael dari Tim IT Security. Kami mendeteksi celah keamanan pada akun Anda. Kirimkan kata sandi Anda sekarang agar kami bisa memperbaruinya. Wajib dibalas dalam 10 menit.",
+      "Berdasarkan evaluasi SPT, Anda memiliki kekurangan pembayaran pajak sebesar Rp4.200.000. Unduh dokumen salinan nota dinas pemeriksaan pajak terlampir: Surat_Teguran_Pajak.apk",
     choices: [
-      { label: "Berikan kata sandi Anda segera", safe: false, explanation: "Tim IT tidak pernah meminta kata sandi Anda — ini indikator bahaya utama." },
-      { label: "Minta ID karyawan dan nomor tiket resmi terlebih dahulu", safe: true, explanation: "Cerdas — selalu verifikasi klaim otoritas melalui prosedur resmi." },
-      { label: "Hubungi Tim IT melalui direktori internal perusahaan", safe: true, explanation: "Benar! Gunakan saluran komunikasi internal resmi." },
-      { label: "Langsung patuh karena mengatasnamakan Tim IT", safe: false, explanation: "Tim IT resmi tidak akan meminta kata sandi mentah melalui email/chat." },
+      { label: "Unduh file Surat_Teguran_Pajak.apk", safe: false, explanation: "DJP tidak pernah mengirimkan surat teguran pajak dalam format .APK." },
+      { label: "Login ke portal resmi djponline.pajak.go.id", safe: true, explanation: "Sangat tepat! Portal resmi DJP adalah satu-satunya acuan status pajak Anda." },
+      { label: "Konfirmasi ke kantor pelayanan pajak (KPP) terdekat", safe: true, explanation: "Verifikasi langsung ke instansi resmi mencegah penipuan otoritas." },
+      { label: "Hapus email dan tandai sebagai Phishing", safe: true, explanation: "Langkah tepat untuk melindungi perangkat dari serangan malware." },
     ],
-    riskyFeedback: "Penipuan berkedok otoritas sangat berbahaya. Tim IT resmi menggunakan portal terintegrasi dan tidak memintai kata sandi pengguna.",
-    safeFeedback: "Luar biasa! Mengidentifikasi penyamaran otoritas palsu adalah keterampilan krusial dalam keamanan siber.",
+    riskyFeedback: "Instansi pemerintah seperti DJP sering dicatut penipu. Mengunduh file .APK dari email akan meretas HP Anda.",
+    safeFeedback: "Luar biasa! Mengidentifikasi pencatutan otoritas pemerintah adalah pertahanan siber yang sangat kuat.",
   },
   {
     id: 4,
     trigger: "Greed",
     triggerColor: "#fbbf24",
-    sender: "Promo Festival 2026",
+    sender: "Telkomsel Poin Festival",
     avatar: "🎁",
-    time: "4:30 PM",
+    time: "04:15 PM",
     platform: "whatsapp",
     message:
-      "Selamat! Nomor WhatsApp Anda terpilih mendapatkan Grand Prize Voucher Belanja Rp10.000.000! Klaim sekarang dengan mengisi data KTP & nomor rekening di: http://promo-klaim-hadiah.win",
+      "Selamat! 5.000 Poin Telkomsel Anda berhasil ditukar dengan Saldo e-Wallet Rp3.500.000. Klaim pencairan saldo sekarang sebelum kedaluwarsa: http://telkomsel-poin-klaim.win/saldo",
     choices: [
-      { label: "Isi data pribadi & rekening untuk klaim", safe: false, explanation: "Membagikan data sensitif demi hadiah fiktif memicu pencurian identitas." },
-      { label: "Periksa tautan dan laporkan sebagai spam", safe: true, explanation: "Kerja bagus! Hadiah tanpa alasan yang meminta data bank adalah penipuan." },
-      { label: "Bayar sedikit 'biaya admin' untuk pencairan", safe: false, explanation: "Hadiah resmi tidak pernah meminta uang muka atau biaya pencairan." },
-      { label: "Hapus pesan secara langsung", safe: true, explanation: "Langkah aman. Iming-iming hadiah gratis adalah jebakan pemancingan data." },
+      { label: "Isi data nomor HP dan kode OTP untuk klaim", safe: false, explanation: "Memberikan OTP saat klaim hadiah membuat akun e-wallet/m-banking Anda dikuasai penipu." },
+      { label: "Cek sisa poin resmi via aplikasi MyTelkomsel", safe: true, explanation: "Tepat sekali! Poin resmi hanya dapat dikelola di aplikasi MyTelkomsel." },
+      { label: "Laporkan nomor penipu ke saluran aduan Telkomsel", safe: true, explanation: "Membantu menghentikan penyebaran penipuan ke pengguna lain." },
+      { label: "Abaikan iming-iming hadiah mendadak ini", safe: true, explanation: "Menahan diri dari tawaran tergiur adalah benteng terbaik." },
     ],
-    riskyFeedback: "Anda tergiur oleh iming-iming hadiah. Penipu menggunakan tawaran fantastis untuk menjebak korban menyerahkan kredensial.",
-    safeFeedback: "Hebat! Anda berhasil menahan diri dari godaan hadiah mendadak dan mengenali jebakan pencurian data.",
+    riskyFeedback: "Iming-iming uang gratis memicu pemicu Greed (ketamakan). Penipu meminta OTP untuk menguras akun Anda.",
+    safeFeedback: "Hebat! Anda tidak tergiur oleh hadiah fantastis dan memverifikasi melalui MyTelkomsel.",
   },
 ];
 
 export default function PhishSim() {
+  const [scenariosList, setScenariosList] = useState<Scenario[]>(defaultScenarios);
   const [scenarioIndex, setScenarioIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>("scenario");
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   const [results, setResults] = useState<boolean[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [generatingAi, setGeneratingAi] = useState(false);
 
-  const scenario = scenarios[scenarioIndex];
-  const progress = ((scenarioIndex + 1) / scenarios.length) * 100;
+  // 2. Ambil Skenario Riil dari Supabase (Jika Tersedia)
+  useEffect(() => {
+    async function fetchSupabaseScenarios() {
+      try {
+        const { data, error } = await supabase.from("scenarios").select("*");
+        if (data && !error && data.length > 0) {
+          const mappedData: Scenario[] = data.map((item, idx) => ({
+            id: item.id || idx + 10,
+            trigger: item.trigger_category || "Urgency",
+            triggerColor:
+              item.trigger_category === "Fear"
+                ? "#f59e0b"
+                : item.trigger_category === "Authority"
+                ? "#a78bfa"
+                : item.trigger_category === "Greed"
+                ? "#fbbf24"
+                : "#ef4444",
+            sender: item.title || "Layanan Keuangan",
+            avatar: item.title ? item.title.charAt(0) : "S",
+            time: "Baru saja",
+            platform: item.sender_type === "Email" ? "email" : "whatsapp",
+            message: item.content,
+            choices: [
+              { label: "Verifikasi via saluran resmi / Abaikan", safe: true, explanation: "Tindakan aman! Jangan respons pesan tak dikenal." },
+              { label: "Klik tautan / Unduh file terlampir", safe: false, explanation: "Berisiko tinggi! Menolak menekan tautan melindungi data Anda." },
+            ],
+            riskyFeedback: item.explanation || "Pesan terindikasi manipulasi penipuan siber.",
+            safeFeedback: "Pilihan tepat! Anda mengenali pemicu ancaman digital.",
+          }));
+          setScenariosList((prev) => [...prev, ...mappedData]);
+        }
+      } catch (err) {
+        console.error("Gagal mengambil data skenario dari Supabase:", err);
+      }
+    }
+
+    fetchSupabaseScenarios();
+  }, []);
+
+  // 3. Generator Skenario Dinamis Menggunakan OpenAI API
+  async function generateNewScenarioWithAI() {
+    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    if (!apiKey) {
+      alert("Harap masukkan VITE_OPENAI_API_KEY di file .env untuk fitur pembuatan skenario AI otomatis!");
+      return;
+    }
+
+    setGeneratingAi(true);
+    const triggers = ["Urgency", "Fear", "Authority", "Greed"];
+    const randomTrigger = triggers[Math.floor(Math.random() * triggers.length)];
+
+    try {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content: `Buatkan 1 skenario penipuan/phishing siber nyata dalam Bahasa Indonesia ber-setting tren tren siber Indonesia.
+Pemicu emosi utama: ${randomTrigger}.
+Output HANYA format JSON valid tanpa tanda markdown/backticks:
+{
+  "sender": "Nama pengirim (misal: Bank BCA, Shopee, DANA, Kurir)",
+  "platform": "whatsapp" atau "email",
+  "avatar": "Inisial 1 huruf",
+  "time": "11:20 AM",
+  "subject": "Subjek jika email",
+  "message": "Pesan penipuan yang meyakinkan",
+  "choices": [
+    {"label": "Pilihan A (Risky)", "safe": false, "explanation": "Alasan bahaya"},
+    {"label": "Pilihan B (Safe)", "safe": true, "explanation": "Alasan aman"},
+    {"label": "Pilihan C (Safe)", "safe": true, "explanation": "Alasan aman"}
+  ],
+  "riskyFeedback": "Penjelasan mengapa pilihan ini berbahaya",
+  "safeFeedback": "Pujian atas keputusan aman"
+}`,
+            },
+          ],
+        }),
+      });
+
+      const data = await response.json();
+      const rawContent = data.choices[0].message.content.trim();
+      const cleanJson = rawContent.replace(/^```json/, "").replace(/```$/, "").trim();
+      const parsedAiScenario = JSON.parse(cleanJson);
+
+      const newScenario: Scenario = {
+        id: Date.now(),
+        trigger: randomTrigger as any,
+        triggerColor:
+          randomTrigger === "Fear"
+            ? "#f59e0b"
+            : randomTrigger === "Authority"
+            ? "#a78bfa"
+            : randomTrigger === "Greed"
+            ? "#fbbf24"
+            : "#ef4444",
+        sender: parsedAiScenario.sender,
+        avatar: parsedAiScenario.avatar || "A",
+        time: parsedAiScenario.time || "Baru saja",
+        platform: parsedAiScenario.platform || "whatsapp",
+        subject: parsedAiScenario.subject,
+        message: parsedAiScenario.message,
+        choices: parsedAiScenario.choices,
+        riskyFeedback: parsedAiScenario.riskyFeedback,
+        safeFeedback: parsedAiScenario.safeFeedback,
+      };
+
+      setScenariosList((prev) => [newScenario, ...prev]);
+      setScenarioIndex(0);
+      setPhase("scenario");
+      setSelectedChoice(null);
+    } catch (err) {
+      console.error("Gagal generate skenario AI:", err);
+      alert("Gagal terhubung ke AI. Menggunakan skenario bawaan.");
+    } finally {
+      setGeneratingAi(false);
+    }
+  }
+
+  const scenario = scenariosList[scenarioIndex] || defaultScenarios[0];
+  const progress = ((scenarioIndex + 1) / scenariosList.length) * 100;
 
   // Catat hasil keputusan ke Supabase secara asynchronous
   async function recordLogToSupabase(choice: ScenarioChoice) {
@@ -125,7 +253,7 @@ export default function PhishSim() {
         // 1. Simpan Log ke Tabel simulation_logs
         await supabase.from("simulation_logs").insert({
           user_id: user.id,
-          scenario_id: scenario.id,
+          scenario_id: typeof scenario.id === "number" ? scenario.id : 1,
           user_decision: `${scenario.trigger}: ${choice.label}`,
           score_impact: scoreImpact,
         });
@@ -154,17 +282,17 @@ export default function PhishSim() {
     const choice = scenario.choices[choiceIndex];
     setSelectedChoice(choiceIndex);
     setPhase("feedback");
-    
+
     if (choice.safe) {
       setScore((s) => s + 25);
     }
-    
+
     setResults((r) => [...r, choice.safe]);
     recordLogToSupabase(choice);
   }
 
   function handleNext() {
-    if (scenarioIndex < scenarios.length - 1) {
+    if (scenarioIndex < scenariosList.length - 1) {
       setScenarioIndex((i) => i + 1);
       setPhase("scenario");
       setSelectedChoice(null);
@@ -196,7 +324,7 @@ export default function PhishSim() {
             Simulasi Selesai
           </h2>
           <p className="text-sm mb-6" style={{ color: "#7b90ad" }}>
-            Anda berhasil menjawab {passed} dari {scenarios.length} skenario dengan aman
+            Anda berhasil menjawab {passed} dari {scenariosList.length} skenario dengan aman
           </p>
           <div
             className="text-4xl font-bold mb-6"
@@ -204,20 +332,30 @@ export default function PhishSim() {
           >
             +{score} pts
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setScenarioIndex(0);
-              setPhase("scenario");
-              setSelectedChoice(null);
-              setScore(0);
-              setResults([]);
-            }}
-            className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all hover:bg-blue-600"
-            style={{ background: "#1d4ed8" }}
-          >
-            Coba Latihan Lagi
-          </button>
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => {
+                setScenarioIndex(0);
+                setPhase("scenario");
+                setSelectedChoice(null);
+                setScore(0);
+                setResults([]);
+              }}
+              className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all hover:bg-blue-600"
+              style={{ background: "#1d4ed8" }}
+            >
+              Coba Latihan Lagi
+            </button>
+            <button
+              type="button"
+              onClick={generateNewScenarioWithAI}
+              disabled={generatingAi}
+              className="w-full py-2.5 rounded-xl text-xs font-semibold text-blue-400 border border-blue-500/30 hover:bg-blue-500/10 transition-colors"
+            >
+              {generatingAi ? "Membuat Skenario AI Baru..." : "✨ Buatkan Skenario AI Baru"}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -233,10 +371,25 @@ export default function PhishSim() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
           <div>
             <span className="text-xs font-medium" style={{ color: "#526380" }}>
-              Skenario {scenarioIndex + 1} dari {scenarios.length}
+              Skenario {scenarioIndex + 1} dari {scenariosList.length}
             </span>
           </div>
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
+            <button
+              type="button"
+              onClick={generateNewScenarioWithAI}
+              disabled={generatingAi}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-400 border border-blue-500/30 hover:bg-blue-500/10 transition-colors flex items-center gap-1.5"
+            >
+              {generatingAi ? (
+                <>
+                  <div className="w-3 h-3 rounded-full border-2 border-blue-400 border-t-transparent animate-spin" />
+                  Generating AI...
+                </>
+              ) : (
+                "✨ Generasi Soal AI Baru"
+              )}
+            </button>
             <div
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
               style={{ background: "#0f1629" }}
@@ -305,9 +458,7 @@ export default function PhishSim() {
                 style={{ background: scenario.platform === "whatsapp" ? "#202c33" : "#1e293b" }}
               >
                 <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white .flex-shrink-0 {
- flex-shrink: 0;
-}"
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
                   style={{ background: scenario.platform === "whatsapp" ? "#1d4ed8" : "#0284c7" }}
                 >
                   {scenario.avatar}
@@ -353,9 +504,7 @@ export default function PhishSim() {
                 border: `1px solid ${scenario.triggerColor}25`,
               }}
             >
-              <span className="text-base .flex-shrink-0 {
- flex-shrink: 0;
-}" role="img" aria-label="lightbulb">💡</span>
+              <span className="text-base flex-shrink-0" role="img" aria-label="lightbulb">💡</span>
               <div>
                 <div
                   className="text-xs font-semibold mb-0.5"
@@ -434,9 +583,7 @@ export default function PhishSim() {
                     }}
                   >
                     <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold .flex-shrink-0 {
- flex-shrink: 0;
-}"
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
                       style={{ background: "#162035", color: "#7b90ad" }}
                     >
                       {String.fromCharCode(65 + i)}
@@ -445,9 +592,7 @@ export default function PhishSim() {
                       {choice.label}
                     </span>
                     {showResult && isSelected && (
-                      <span className="ml-auto text-base .flex-shrink-0 {
- flex-shrink: 0;
-}">
+                      <span className="ml-auto text-base flex-shrink-0">
                         {choice.safe ? "✓" : "✗"}
                       </span>
                     )}
@@ -484,7 +629,7 @@ export default function PhishSim() {
                 className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:bg-blue-600"
                 style={{ background: "#1d4ed8" }}
               >
-                {scenarioIndex < scenarios.length - 1
+                {scenarioIndex < scenariosList.length - 1
                   ? "Lanjut ke Skenario Berikutnya →"
                   : "Lihat Hasil Akhir →"}
               </button>
