@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
+// Import dataset lokal JSON (hasil konversi dari CEAS_08.csv)
+import localDataset from "/home/toik-zakiyudin/Downloads/Digital Decision Lab Prototype/data/ceas_data.json";
 
 type Phase = "scenario" | "feedback" | "complete";
 
@@ -24,7 +26,7 @@ export interface Scenario {
   safeFeedback: string;
 }
 
-// 1. Bank Skenario Riil Tren Penipuan Siber di Indonesia
+// 1. Bank Skenario Riil Bawaan
 const defaultScenarios: Scenario[] = [
   {
     id: 1,
@@ -105,6 +107,80 @@ const defaultScenarios: Scenario[] = [
   },
 ];
 
+// 2. Helper: Pengacak Array (Fisher-Yates Shuffle)
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+// 3. Helper: Pembuat Skenario Dinamis dari Data Dataset CEAS_08 Lokal
+function buildDynamicScenarioFromLocal(rawItem: any, index: number): Scenario {
+  const bodyText = rawItem.body || rawItem.text || rawItem.subject || "Pesan tidak memiliki isi";
+  const lower = bodyText.toLowerCase();
+
+  const isSpam =
+    rawItem.label === 1 ||
+    rawItem.label === "1" ||
+    String(rawItem.label).toLowerCase() === "spam";
+
+  let trigger: "Urgency" | "Fear" | "Authority" | "Greed" = "Urgency";
+  let triggerColor = "#ef4444";
+
+  if (/(menang|hadiah|voucher|cashback|gratis|klaim|saldo|bonus)/i.test(lower)) {
+    trigger = "Greed";
+    triggerColor = "#fbbf24";
+  } else if (/(diblokir|diretas|sanksi|pidana|pembekuan|terkunci|bahaya)/i.test(lower)) {
+    trigger = "Fear";
+    triggerColor = "#f59e0b";
+  } else if (/(bank|djp|pajak|polisi|resmi|admin|verifikasi|official)/i.test(lower)) {
+    trigger = "Authority";
+    triggerColor = "#a78bfa";
+  }
+
+  const safeChoices: ScenarioChoice[] = [
+    { label: "Cek & verifikasi via saluran / aplikasi resmi", safe: true, explanation: "Tindakan aman! Jangan respons pesan tak dikenal secara langsung." },
+    { label: "Abaikan dan laporkan pesan ini sebagai Spam", safe: true, explanation: "Sangat tepat! Mengabaikan pesan berisiko melindungi data pribadi Anda." },
+  ];
+
+  const riskyChoices: ScenarioChoice[] = [
+    { label: "Klik tautan / unduh file di dalam pesan", safe: false, explanation: "Berisiko tinggi! Mengeklik tautan langsung dapat meretas perangkat Anda." },
+    { label: "Balas pesan dan berikan kode OTP / PIN yang diminta", safe: false, explanation: "Sangat berbahaya! Data sensitif Anda dapat dikuasai penipu." },
+  ];
+
+  let choices: ScenarioChoice[] = [];
+  if (isSpam) {
+    choices = shuffleArray([
+      riskyChoices[Math.floor(Math.random() * riskyChoices.length)],
+      safeChoices[0],
+      safeChoices[1],
+    ]);
+  } else {
+    choices = shuffleArray([
+      { label: "Buka dan respon informasi pesan secara wajar", safe: true, explanation: "Pesan ini teridentifikasi sebagai komunikasi valid/aman." },
+      ...safeChoices,
+    ]);
+  }
+
+  return {
+    id: rawItem.id || `local-${index}-${Date.now()}`,
+    trigger,
+    triggerColor,
+    sender: rawItem.subject || rawItem.sender || "Layanan Keuangan",
+    avatar: (rawItem.subject || "S").charAt(0).toUpperCase(),
+    time: "Baru saja",
+    platform: Math.random() > 0.5 ? "whatsapp" : "email",
+    subject: rawItem.subject,
+    message: bodyText,
+    choices,
+    riskyFeedback: `Pesan ini terdeteksi sebagai sampel phishing yang memicu ${trigger}.`,
+    safeFeedback: "Keputusan tepat! Anda mempraktikkan verifikasi keamanan siber yang baik.",
+  };
+}
+
 export default function PhishSim() {
   const [scenariosList, setScenariosList] = useState<Scenario[]>(defaultScenarios);
   const [scenarioIndex, setScenarioIndex] = useState(0);
@@ -112,49 +188,68 @@ export default function PhishSim() {
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   const [results, setResults] = useState<boolean[]>([]);
-  const [loading, setLoading] = useState(false);
   const [generatingAi, setGeneratingAi] = useState(false);
 
-  // 2. Ambil Skenario Riil dari Supabase (Jika Tersedia)
-  useEffect(() => {
-    async function fetchSupabaseScenarios() {
-      try {
-        const { data, error } = await supabase.from("scenarios").select("*");
-        if (data && !error && data.length > 0) {
-          const mappedData: Scenario[] = data.map((item, idx) => ({
-            id: item.id || idx + 10,
-            trigger: item.trigger_category || "Urgency",
-            triggerColor:
-              item.trigger_category === "Fear"
-                ? "#f59e0b"
-                : item.trigger_category === "Authority"
-                ? "#a78bfa"
-                : item.trigger_category === "Greed"
-                ? "#fbbf24"
-                : "#ef4444",
-            sender: item.title || "Layanan Keuangan",
-            avatar: item.title ? item.title.charAt(0) : "S",
-            time: "Baru saja",
-            platform: item.sender_type === "Email" ? "email" : "whatsapp",
-            message: item.content,
-            choices: [
-              { label: "Verifikasi via saluran resmi / Abaikan", safe: true, explanation: "Tindakan aman! Jangan respons pesan tak dikenal." },
-              { label: "Klik tautan / Unduh file terlampir", safe: false, explanation: "Berisiko tinggi! Menolak menekan tautan melindungi data Anda." },
-            ],
-            riskyFeedback: item.explanation || "Pesan terindikasi manipulasi penipuan siber.",
-            safeFeedback: "Pilihan tepat! Anda mengenali pemicu ancaman digital.",
-          }));
-          setScenariosList((prev) => [...prev, ...mappedData]);
-        }
-      } catch (err) {
-        console.error("Gagal mengambil data skenario dari Supabase:", err);
-      }
+  // Inisialisasi & Pengacakan Soal gabungan (Lokal Dataset + Supabase)
+  const initGameScenarios = async () => {
+    let combinedPool: Scenario[] = [...defaultScenarios];
+
+    // 1. Masukkan Dataset CEAS_08 Lokal (jika ada)
+    if (localDataset && Array.isArray(localDataset) && localDataset.length > 0) {
+      const shuffledLocal = shuffleArray(localDataset as any[]).slice(0, 5);
+      const formattedLocal = shuffledLocal.map((item, idx) => buildDynamicScenarioFromLocal(item, idx));
+      combinedPool = [...combinedPool, ...formattedLocal];
     }
 
-    fetchSupabaseScenarios();
+    // 2. Ambil Skenario Tambahan dari Supabase
+    try {
+      const { data, error } = await supabase.from("scenarios").select("*").limit(10);
+      if (data && !error && data.length > 0) {
+        const mappedData: Scenario[] = data.map((item, idx) => ({
+          id: item.id || idx + 100,
+          trigger: item.trigger_category || "Urgency",
+          triggerColor:
+            item.trigger_category === "Fear"
+              ? "#f59e0b"
+              : item.trigger_category === "Authority"
+              ? "#a78bfa"
+              : item.trigger_category === "Greed"
+              ? "#fbbf24"
+              : "#ef4444",
+          sender: item.title || item.sender || "Layanan Keuangan",
+          avatar: item.title ? item.title.charAt(0) : "S",
+          time: "Baru saja",
+          platform: item.sender_type === "Email" ? "email" : "whatsapp",
+          message: item.content || item.body || item.text,
+          choices: shuffleArray([
+            { label: "Cek & verifikasi via aplikasi / saluran resmi", safe: true, explanation: "Tindakan aman! Verifikasi resmi menghindarkan Anda dari manipulasi." },
+            { label: "Klik link atau ikuti petunjuk di dalam pesan", safe: false, explanation: "Berisiko tinggi! Mengeklik tautan langsung dapat meretas akun Anda." },
+            { label: "Abaikan dan tandai pesan sebagai Spam", safe: true, explanation: "Sangat tepat! Mengabaikan pesan berisiko melindungi data Anda." },
+          ]),
+          riskyFeedback: item.explanation || "Pesan ini mengindikasikan metode penipuan digital yang berbahaya.",
+          safeFeedback: "Keputusan tepat! Anda mempraktikkan verifikasi keamanan siber yang baik.",
+        }));
+        combinedPool = [...combinedPool, ...mappedData];
+      }
+    } catch (err) {
+      console.error("Gagal mengambil data skenario dari Supabase:", err);
+    }
+
+    // 3. Acak Seluruh Pool Soal dan Ambil 5 Soal Per Sesi
+    const finalSelection = shuffleArray(combinedPool).slice(0, 5);
+    setScenariosList(finalSelection);
+    setScenarioIndex(0);
+    setPhase("scenario");
+    setSelectedChoice(null);
+    setScore(0);
+    setResults([]);
+  };
+
+  useEffect(() => {
+    initGameScenarios();
   }, []);
 
-  // 3. Generator Skenario Dinamis Menggunakan OpenAI API
+  // Generator Skenario Dinamis Menggunakan OpenAI API
   async function generateNewScenarioWithAI() {
     const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
     if (!apiKey) {
@@ -178,7 +273,7 @@ export default function PhishSim() {
           messages: [
             {
               role: "system",
-              content: `Buatkan 1 skenario penipuan/phishing siber nyata dalam Bahasa Indonesia ber-setting tren tren siber Indonesia.
+              content: `Buatkan 1 skenario penipuan/phishing siber nyata dalam Bahasa Indonesia ber-setting tren siber Indonesia.
 Pemicu emosi utama: ${randomTrigger}.
 Output HANYA format JSON valid tanpa tanda markdown/backticks:
 {
@@ -223,7 +318,7 @@ Output HANYA format JSON valid tanpa tanda markdown/backticks:
         platform: parsedAiScenario.platform || "whatsapp",
         subject: parsedAiScenario.subject,
         message: parsedAiScenario.message,
-        choices: parsedAiScenario.choices,
+        choices: shuffleArray(parsedAiScenario.choices),
         riskyFeedback: parsedAiScenario.riskyFeedback,
         safeFeedback: parsedAiScenario.safeFeedback,
       };
@@ -241,16 +336,14 @@ Output HANYA format JSON valid tanpa tanda markdown/backticks:
   }
 
   const scenario = scenariosList[scenarioIndex] || defaultScenarios[0];
-  const progress = ((scenarioIndex + 1) / scenariosList.length) * 100;
+  const progress = scenariosList.length > 0 ? ((scenarioIndex + 1) / scenariosList.length) * 100 : 0;
 
-  // Catat hasil keputusan ke Supabase secara asynchronous
   async function recordLogToSupabase(choice: ScenarioChoice) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const scoreImpact = choice.safe ? 25 : -15;
 
-        // 1. Simpan Log ke Tabel simulation_logs
         await supabase.from("simulation_logs").insert({
           user_id: user.id,
           scenario_id: typeof scenario.id === "number" ? scenario.id : 1,
@@ -258,7 +351,6 @@ Output HANYA format JSON valid tanpa tanda markdown/backticks:
           score_impact: scoreImpact,
         });
 
-        // 2. Update overall_score di tabel profiles
         const { data: profile } = await supabase
           .from("profiles")
           .select("overall_score")
@@ -335,17 +427,11 @@ Output HANYA format JSON valid tanpa tanda markdown/backticks:
           <div className="space-y-3">
             <button
               type="button"
-              onClick={() => {
-                setScenarioIndex(0);
-                setPhase("scenario");
-                setSelectedChoice(null);
-                setScore(0);
-                setResults([]);
-              }}
+              onClick={initGameScenarios}
               className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all hover:bg-blue-600"
               style={{ background: "#1d4ed8" }}
             >
-              Coba Latihan Lagi
+              🔄 Mainkan Set Soal Acak Baru
             </button>
             <button
               type="button"
@@ -377,6 +463,13 @@ Output HANYA format JSON valid tanpa tanda markdown/backticks:
           <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
             <button
               type="button"
+              onClick={initGameScenarios}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-400 border border-blue-500/30 hover:bg-blue-500/10 transition-colors"
+            >
+              🎲 Acak Soal
+            </button>
+            <button
+              type="button"
               onClick={generateNewScenarioWithAI}
               disabled={generatingAi}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-400 border border-blue-500/30 hover:bg-blue-500/10 transition-colors flex items-center gap-1.5"
@@ -387,7 +480,7 @@ Output HANYA format JSON valid tanpa tanda markdown/backticks:
                   Generating AI...
                 </>
               ) : (
-                "✨ Generasi Soal AI Baru"
+                "✨ Soal AI"
               )}
             </button>
             <div
@@ -458,7 +551,9 @@ Output HANYA format JSON valid tanpa tanda markdown/backticks:
                 style={{ background: scenario.platform === "whatsapp" ? "#202c33" : "#1e293b" }}
               >
                 <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white .flex-shrink-0 {
+ flex-shrink: 0;
+}"
                   style={{ background: scenario.platform === "whatsapp" ? "#1d4ed8" : "#0284c7" }}
                 >
                   {scenario.avatar}
@@ -504,7 +599,9 @@ Output HANYA format JSON valid tanpa tanda markdown/backticks:
                 border: `1px solid ${scenario.triggerColor}25`,
               }}
             >
-              <span className="text-base flex-shrink-0" role="img" aria-label="lightbulb">💡</span>
+              <span className="text-base .flex-shrink-0 {
+ flex-shrink: 0;
+}" role="img" aria-label="lightbulb">💡</span>
               <div>
                 <div
                   className="text-xs font-semibold mb-0.5"
@@ -583,7 +680,9 @@ Output HANYA format JSON valid tanpa tanda markdown/backticks:
                     }}
                   >
                     <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold .flex-shrink-0 {
+ flex-shrink: 0;
+}"
                       style={{ background: "#162035", color: "#7b90ad" }}
                     >
                       {String.fromCharCode(65 + i)}
@@ -592,7 +691,9 @@ Output HANYA format JSON valid tanpa tanda markdown/backticks:
                       {choice.label}
                     </span>
                     {showResult && isSelected && (
-                      <span className="ml-auto text-base flex-shrink-0">
+                      <span className="ml-auto text-base .flex-shrink-0 {
+ flex-shrink: 0;
+}">
                         {choice.safe ? "✓" : "✗"}
                       </span>
                     )}

@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
+// Import dataset lokal JSON (hasil konversi dari CEAS_08.csv)
+import localDataset from "/home/toik-zakiyudin/Downloads/Digital Decision Lab Prototype/data/ceas_data.json";
 
 interface AnalysisResult {
   riskLevel: "high" | "medium" | "low";
@@ -9,7 +11,88 @@ interface AnalysisResult {
   primaryTrigger: "Urgency" | "Fear" | "Authority" | "Greed" | "Trust" | "Safe";
 }
 
-// 1. Analisis AI Menggunakan OpenAI API
+// 1. Pencocokan ke Dataset CEAS_08 Lokal (JSON)
+function analyzeWithLocalDataset(userInput: string): AnalysisResult | null {
+  try {
+    const cleanQuery = userInput.trim().toLowerCase();
+    if (!cleanQuery || cleanQuery.length < 5) return null;
+
+    // Pencocokan substring ke kolom body, text, atau subject di ceas_data.json
+    const matchedRecord = (localDataset as any[]).find((item) => {
+      const bodyText = (item.body || item.text || "").toLowerCase();
+      const subjectText = (item.subject || "").toLowerCase();
+      return bodyText.includes(cleanQuery) || subjectText.includes(cleanQuery);
+    });
+
+    if (!matchedRecord) return null;
+
+    const isSpam =
+      matchedRecord.label === 1 ||
+      matchedRecord.label === "1" ||
+      String(matchedRecord.label).toLowerCase() === "spam";
+
+    return {
+      riskLevel: isSpam ? "high" : "low",
+      riskScore: isSpam ? 95 : 10,
+      triggers: isSpam
+        ? [
+            "Tercatat dalam basis data penipuan/phishing CEAS_08 lokal",
+            "Pola pesan identik dengan riwayat email berbahaya",
+          ]
+        : ["Terverifikasi sebagai pesan aman pada dataset CEAS_08 lokal"],
+      explanation: isSpam
+        ? "Pesan ini memiliki kesamaan tinggi dengan sampel email phishing terverifikasi pada basis data lokal CEAS_08. Hindari mengeklik tautan atau memberikan informasi pribadi."
+        : "Pesan ini terverifikasi memiliki karakteristik komunikasi aman berdasarkan sampel dataset CEAS_08 lokal.",
+      primaryTrigger: isSpam ? "Urgency" : "Safe",
+    };
+  } catch (err) {
+    console.error("Gagal melakukan pencocokan ke dataset lokal JSON:", err);
+    return null;
+  }
+}
+
+// 2. Pencocokan Langsung ke Dataset CEAS_08 via Supabase
+async function analyzeWithDataset(userInput: string): Promise<AnalysisResult | null> {
+  try {
+    const cleanQuery = userInput.trim().substring(0, 40);
+    if (!cleanQuery) return null;
+
+    // Pencocokan substring ke kolom body atau subject di tabel ceas_emails
+    const { data, error } = await supabase
+      .from("ceas_emails")
+      .select("*")
+      .or(`body.ilike.%${cleanQuery}%,subject.ilike.%${cleanQuery}%`)
+      .limit(1);
+
+    if (error || !data || data.length === 0) return null;
+
+    const matchedRecord = data[0];
+    const isSpam =
+      matchedRecord.label === 1 ||
+      matchedRecord.label === "1" ||
+      String(matchedRecord.label).toLowerCase() === "spam";
+
+    return {
+      riskLevel: isSpam ? "high" : "low",
+      riskScore: isSpam ? 95 : 10,
+      triggers: isSpam
+        ? [
+            "Tercatat dalam basis data penipuan/phishing CEAS_08",
+            "Pola pesan identik dengan riwayat email berbahaya",
+          ]
+        : ["Terverifikasi sebagai pesan aman pada dataset CEAS_08"],
+      explanation: isSpam
+        ? "Pesan ini memiliki kesamaan tinggi dengan sampel email phishing terverifikasi pada basis data CEAS_08. Hindari mengeklik tautan atau memberikan informasi pribadi."
+        : "Pesan ini terverifikasi memiliki karakteristik komunikasi aman berdasarkan sampel dataset CEAS_08.",
+      primaryTrigger: isSpam ? "Urgency" : "Safe",
+    };
+  } catch (err) {
+    console.error("Gagal melakukan pencocokan ke dataset Supabase:", err);
+    return null;
+  }
+}
+
+// 3. Analisis AI Menggunakan OpenAI API
 async function analyzeWithOpenAI(userInput: string): Promise<AnalysisResult | null> {
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
   if (!apiKey) return null;
@@ -51,7 +134,7 @@ Tentukan format output HANYA dalam JSON valid tanpa markdown/backticks:
   }
 }
 
-// 2. Pemindaian URL Menggunakan VirusTotal API
+// 4. Pemindaian URL Menggunakan VirusTotal API
 async function analyzeWithVirusTotal(urlToScan: string): Promise<AnalysisResult | null> {
   const apiKey = import.meta.env.VITE_VIRUSTOTAL_API_KEY;
   if (!apiKey) return null;
@@ -94,7 +177,7 @@ async function analyzeWithVirusTotal(urlToScan: string): Promise<AnalysisResult 
   }
 }
 
-// 3. Fallback Rule-Based Scanner Lokal
+// 5. Fallback Rule-Based Scanner Lokal
 function analyzeTextLocal(text: string): AnalysisResult {
   const lower = text.toLowerCase();
   const triggers: string[] = [];
@@ -192,19 +275,32 @@ export default function PhishShield() {
     setResult(null);
 
     let res: AnalysisResult | null = null;
-    const containsUrl = /http[s]?:\/\/[^\s]+/.test(input);
 
-    if (containsUrl) {
-      const urlMatch = input.match(/http[s]?:\/\/[^\s]+/);
-      if (urlMatch) {
-        res = await analyzeWithVirusTotal(urlMatch[0]);
+    // Prioritas 1: Cek Dataset CEAS_08 Lokal (JSON)
+    res = analyzeWithLocalDataset(input);
+
+    // Prioritas 2: Cek Dataset CEAS_08 di Supabase
+    if (!res) {
+      res = await analyzeWithDataset(input);
+    }
+
+    // Prioritas 3: VirusTotal API (jika mengandung URL)
+    if (!res) {
+      const containsUrl = /http[s]?:\/\/[^\s]+/.test(input);
+      if (containsUrl) {
+        const urlMatch = input.match(/http[s]?:\/\/[^\s]+/);
+        if (urlMatch) {
+          res = await analyzeWithVirusTotal(urlMatch[0]);
+        }
       }
     }
 
+    // Prioritas 4: OpenAI API
     if (!res) {
       res = await analyzeWithOpenAI(input);
     }
 
+    // Prioritas 5: Local Rule-Based Scanner
     if (!res) {
       res = analyzeTextLocal(input);
     }
@@ -212,6 +308,7 @@ export default function PhishShield() {
     setResult(res);
     setAnalyzing(false);
 
+    // Catat log ke Supabase
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -328,7 +425,7 @@ export default function PhishShield() {
                   className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin"
                   style={{ borderColor: "#60a5fa", borderTopColor: "transparent" }}
                 />
-                Analyzing with AI & API...
+                Analyzing with AI & Dataset...
               </>
             ) : (
               "Analyze Message →"
@@ -411,7 +508,9 @@ export default function PhishShield() {
                 }}
               >
                 <div
-                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  className="w-2 h-2 rounded-full .flex-shrink-0 {
+ flex-shrink: 0;
+}"
                   style={{ background: riskConfig[result.riskLevel].color }}
                 />
                 <span
@@ -478,7 +577,9 @@ export default function PhishShield() {
                       }}
                     >
                       <div
-                        className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold"
+                        className="w-5 h-5 rounded-full flex items-center justify-center .flex-shrink-0 {
+ flex-shrink: 0;
+} text-xs font-bold"
                         style={{ background: "rgba(239,68,68,0.2)", color: "#ef4444" }}
                       >
                         !

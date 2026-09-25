@@ -23,3 +23,8 @@ logs/
 node_modules
 .env
 scraper_scenario.py
+# Ignore dataset dan archive besar
+*.zip
+data/
+*.csv
+upload_to_supabase.py
