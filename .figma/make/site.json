@@ -1,10 +1,1 @@
-{
-  "description": "Enhance your cybersecurity awareness with interactive simulations and personalized insights, empowering users to make safer decisions against phishing threats.",
-  "robots": {
-    "index": false
-  },
-  "accessibility": {
-    "addBypassLinks": false,
-    "ignoreReducedMotion": false
-  }
-}
+{}

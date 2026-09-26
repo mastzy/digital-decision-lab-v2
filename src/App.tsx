@@ -132,9 +132,7 @@ export default function App() {
     >
       {/* Sidebar Desktop */}
       <aside
-        className="hidden lg:flex flex-col w-64 .flex-shrink-0 {
- flex-shrink: 0;
-} border-r"
+        className="hidden lg:flex flex-col w-64 shrink-0 border-r"
         style={{
           background: "#060d1f",
           borderColor: "#162035",
@@ -164,11 +162,7 @@ export default function App() {
                 key={item.id}
                 type="button"
                 onClick={() => setActive(item.id)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 @media (hover: hover) {
- .hover\:bg-\[\#162035\]\/60:hover {
- background-color: color-mix(in oklab, #162035 60%, transparent);
- }
-}"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 hover:bg-[#162035]/60"
                 style={{
                   background: isActive ? "#162035" : "transparent",
                   borderLeft: isActive
@@ -214,11 +208,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => setActive("settings")}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 @media (hover: hover) {
- .hover\:bg-\[\#162035\]\/60:hover {
- background-color: color-mix(in oklab, #162035 60%, transparent);
- }
-}"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 hover:bg-[#162035]/60"
             style={{
               background: active === "settings" ? "#162035" : "transparent",
               borderLeft:
@@ -253,9 +243,7 @@ export default function App() {
           >
             <div className="flex items-center gap-3 min-w-0">
               <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white .flex-shrink-0 {
- flex-shrink: 0;
-}"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
                 style={{ background: "#1d4ed8" }}
               >
                 {userEmail.substring(0, 2).toUpperCase() || "US"}
@@ -286,9 +274,7 @@ export default function App() {
       <main className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Top Header */}
         <header
-          className="flex items-center justify-between px-4 lg:px-8 py-3 lg:py-4 border-b .flex-shrink-0 {
- flex-shrink: 0;
-}"
+          className="flex items-center justify-between px-4 lg:px-8 py-3 lg:py-4 border-b shrink-0"
           style={{ borderColor: "#162035", background: "#060d1f" }}
         >
           <div className="flex items-center gap-3">
@@ -309,7 +295,7 @@ export default function App() {
                   active.charAt(0).toUpperCase() + active.slice(1)}
               </h1>
               <p className="text-[10px] lg:text-xs" style={{ color: "#526380" }}>
-                Tuesday, September 22, 2026
+                Friday, September 25, 2026
               </p>
             </div>
           </div>
@@ -353,11 +339,7 @@ export default function App() {
             <button
               type="button"
               aria-label="Notifications"
-              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors @media (hover: hover) {
- .hover\:bg-\[\#162035\]\/60:hover {
- background-color: color-mix(in oklab, #162035 60%, transparent);
- }
-}"
+              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-[#162035]/60"
               style={{ background: "#162035", color: "#7b90ad" }}
             >
               <svg
